@@ -1,0 +1,104 @@
+{% extends 'base.html' %}
+
+{% block head %}
+<title>In game</title>
+{% endblock %}
+
+{% block body %}
+    {% if session.get('cards') %}
+    
+        {% if session['phase']==1 %}
+            <label for="action">Select a card to play:</label>
+            <form id="actionform" action="/playComputer" method="POST" enctype="multipart/form-data">
+                <select id="mySelect" name = "action">
+                  {% if actionOptions %}
+                      {% for card in actionOptions %}
+                          <option value="{{ card }}" > {{ card }} </option>
+                      {% endfor %}
+                  {% endif %}
+                </select>
+                <input type="submit" value="Submit" class="go" /> 
+            </form>
+            <br>
+        {% endif %}
+        {% if session['phase']==2 %}
+            <label for="buy">Select a card to buy:</label>
+            <form id="buyform" action="/playComputer" method="POST">
+                <select id="mySelect" name = "buy">
+                {% if buyOptions %}
+                  {% for card in buyOptions %}
+                      <option value="{{ card }}" > {{ card }} </option>
+                  {% endfor %}
+                {% endif %}
+                </select>
+                <input type="submit" value="Submit" class="go" /> 
+            </form>
+            <br>
+        {% endif %}
+        {% if session['phase']==3 %}
+            <label for="choice">{{ session['followup']['message'] }}</label>
+            <form id="choiceform" action="/playComputer" method="POST">
+                <select id="mySelect" name = "choice">
+                {% if session['followup']['options'] %}
+                  {% for choice in session['followup']['options'] %}
+                      <option value="{{ choice }}" > {{ choice }} </option>
+                  {% endfor %}
+                {% endif %}
+                </select>
+                <input type="submit" value="Submit" class="go" /> 
+            </form>
+            <br>
+        {% endif %}
+        
+        
+        <form action="/playComputer" method="POST">
+            <input type="submit" name="skip" value="Do Nothing" class="quit" />
+        </form>
+        <br>
+        
+        
+        <div class="playerCards">
+            <h3> Player Cards </h3>
+            {% if 'cards' in session %}
+                {% for key, value in session.get('cards').items() %}
+                    {% if 'Your' in key %}
+                        <h4>{{ key }}</h4>
+                        {% for card, num in value.items() %}
+                            <p> {{ card }}: {{ num }}</p>
+                        {% endfor %}
+                    {% endif %}    
+                {% endfor %}
+            {% endif %}
+                
+        </div>
+        
+        <div class="oppCards">
+            <h3> Opponent's Cards </h3>
+            {% if 'cards' in session %}
+                {% for card in oppCards %}
+                    <p> {{ card }}: {{ oppCards[card] }}</p>
+                {% endfor %}
+            {% endif %}
+                
+        </div>
+        
+        <div class="info">
+            {% if session['phase']==1 %}
+                <h3>Actions: {{ session['actions'] }}</h3>
+            {% else %}
+                <h3>Buys: {{ session['buys'] }}</h3>
+            {% endif %}
+        </div>
+    {% else %}
+    <form action="/playComputer" method="POST">
+        <input type="submit" name="start" value="Start Game" class="go" />
+    </form>
+    {% endif %}
+    <br>
+    <form action="/playComputer" method="POST">
+        <input type="submit" name="quit" value="Quit Game" class="quit" />
+    </form>
+    
+
+
+{% endblock %}
