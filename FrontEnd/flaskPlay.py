@@ -78,14 +78,6 @@ class Simulation:
         #!! not needed yet 
         #player.cleanupPhase()
         
-        #!! might not need this function
-    def finishTurn(self, player, action):
-        while player.buys > 0:
-            player.treasure -= player.makePurchase(self.shop)
-            player.buys -= 1
-        self.treasure = 0
-        self.buys = 0
-        #!!!work out how the flow of this will work: getting state, taking action, and getting state again.
     
     def makeDecision(self, player, buy):
         self.setupTurn(player)
@@ -120,6 +112,7 @@ class Simulation:
     def takeTurn(self):
         done = False
         while not done:
+            #AI HERE?
             done = self.makeDecision(self.p2, 1)
         
         
@@ -180,16 +173,6 @@ class Player:
         self.actions = 0
         self.phase = 2
         
-    
-    def playerAction(self, card):
-        message = self.actionHandler.playerUse(card)
-        if message:
-            return message
-        else:
-            self.discardCard(card)
-            self.actions -= 1
-            if self.actions <= 0:
-                self.phase = 2
     
     '''
     def takeAction(self, actionCards):
@@ -259,15 +242,17 @@ class Player:
     def playerPurchase(self, card, shop):
         shop.deal(card, self, self.discard)
         self.buys -= 1
+        self.treasure -= Card(card).cost
         if self.buys <= 0:
             self.cleanupPhase()
-            self.updateTreasure()
+            
             if len(self.getActions()) == 0:
                 self.phase = 2
             else: 
                 self.phase = 1
-                self.actions = 1
+                #self.actions = 1
             return True
+        return False
         
     def buyOptions(self, shop):
         buyable = []
@@ -299,11 +284,15 @@ class Player:
     
     def cleanupPhase(self):
         #print('cleanupPhase')
+       
         self.discardCard()
         self.draw(5)
         #print(self.hand)
         self.turn += 1
         self.phase = 1
+        self.updateTreasure()
+        self.buys = 1
+        self.actions = 1
     
     def discardCard(self, card=None):
         #print('discarding..')
@@ -375,7 +364,7 @@ class ActionHandler:
                     self.user.actions += 1
                     return None
             if stage == 1:
-                print(arg=="Yes")
+                #print(arg=="Yes")
                 if arg == "Yes":
                     self.user.phase = 3
                     return {"message":"Which card?", "options": list(filter(lambda x: x != "Cellar", self.user.hand)), "stage": stage+1, "card": card}

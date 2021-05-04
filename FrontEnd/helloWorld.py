@@ -54,16 +54,16 @@ def playComputer():
             else:
                 sim = flaskPlay.Simulation(session)
                 if request.form.get('action'):
+                    sim.p1.updateTreasure()
                     actionCard = request.form.get('action')
                     followup = sim.p1.actionHandler.playerUse(actionCard)
                     if followup:
                         session['phase'] = 3
                         session['followup']=followup
                         return redirect(url_for('playComputer'))
-                    else: 
+                    else:  
                         sim.p1.discardCard(actionCard)
                 if request.form.get('buy'):
-                    sim.p1.updateTreasure()
                     end = sim.p1.playerPurchase(request.form.get('buy'), sim.shop)
                     if end:
                         sim.takeTurn()
@@ -77,7 +77,9 @@ def playComputer():
                 if request.form.get('skip'):
                     if sim.p1.phase == 1:
                         sim.p1.phase = 2
+                        
                     else:
+                        sim.p1.buys = 1
                         sim.takeTurn()
                         sim.p1.phase = 1
                     
@@ -87,7 +89,7 @@ def playComputer():
             #print(session)
             #if session.get('cards') and 'Shop' in session.get('cards'):
             #print('finished session: ')
-            print(session)
+            #print(session)
             return redirect(url_for('playComputer'))
     else:
         shopCards = None
@@ -100,7 +102,7 @@ def playComputer():
                 sim.p1.phase = 2
                 session['phase']=2
             if sim.p1.phase == 2:
-                sim.p1.updateTreasure()
+                #sim.p1.updateTreasure()
                 shopCards = sim.p1.buyOptions(sim.shop)
             else:
                 actionCards = sim.p1.getActions()
