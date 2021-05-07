@@ -16,6 +16,7 @@
                           <option value="{{ card }}" > {{ card }} </option>
                       {% endfor %}
                   {% endif %}
+                <option value="None" > None </option>
                 </select>
                 <input type="submit" value="Submit" class="go" /> 
             </form>
@@ -83,11 +84,16 @@
         </div>
         
         <div class="info">
+        <h3>Actions: {{ session['actions'] }}</h3>
+        
+        <h3>Buys: {{ session['buys'] }}</h3>
+            <h3>Treasure: {{ session['treasure'] }}</h3>
+            
+            <h3>Phase: {{ session['phase'] }}</h3>
             {% if session['phase']==1 %}
-                <h3>Actions: {{ session['actions'] }}</h3>
+                
             {% else %}
-                <h3>Buys: {{ session['buys'] }}</h3>
-                <h3>Treasure: {{ session['treasure'] }}</h3>
+                
             {% endif %}
         </div>
     {% else %}

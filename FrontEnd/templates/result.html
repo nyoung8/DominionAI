@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+
+{% block head %}
+
+    {% if victory %}
+        <title>Victory</title>
+        <h1>Congratulations! You came out victorious!</h1>
+    {% else %}
+        <title>Defeat</title>
+        <h1>Nice try, but the computer bested you that time. Try again!</h1>
+    {% endif %}
+
+{% endblock %}
+
+{% block body %}
+
+    <form action="/result" method="POST">
+        <input type="submit" name="return" value="Return to Main Menu" class="go"/>
+    </form>
+    <br>
+    
+{% endblock %}

@@ -2,9 +2,9 @@
 # coding: utf-8
 
 # In[267]:
-
-
+from tensorflow import keras
 import random
+import numpy as np
 class Simulation:
     
     def createPlayer(self, num):
@@ -20,12 +20,14 @@ class Simulation:
         self.p2=self.createPlayer(2)
         self.p1.setHandler(ActionHandler(self.shop, self.p1, self.p2))
         self.p2.setHandler(ActionHandler(self.shop, self.p2, self.p1))
-        self.p1.phase = 1
-        self.p2.phase = 1
+        #self.p1.phase = 1
+        #self.p2.phase = 1
         if session:
             self.p1.treasure = session['treasure']
             self.p1.buys = session['buys']
             self.p1.actions = session['actions']
+            self.p1.phase = session['phase']
+            
             cards = session['cards']
             self.shop.cards = cards['Shop']
             self.p1.hand = cards['Your Hand']
@@ -35,9 +37,14 @@ class Simulation:
             self.p2.deck = cards['cde']
             self.p2.discard = cards['cdi']
             
+            self.weightsFile = session['weights']
+            
+            
             
         else:
-
+            self.p1.phase = 1
+            self.p2.phase = 1
+            self.p1.buys = 1
             '''
             self.shop = Shop()
             self.p1=self.createPlayer(1)
@@ -48,8 +55,8 @@ class Simulation:
             self.shop.reset()
             self.shop.setup([self.p1,self.p2])
             #print(self.getBuyState(self.p1))
-            self.setupTurn(self.p1)
-            self.setupTurn(self.p2)
+            #self.setupTurn(self.p1)
+            #self.setupTurn(self.p2)
             #!! done in model?
         '''
         while True:
@@ -70,9 +77,10 @@ class Simulation:
             
     def setupTurn(self, player):
         #print('setup turn is run')
-        player.actionPhase()
-        #!!stop buy phase
-        player.buyPhase(self.shop)
+        player.actions = 1
+        player.buys = 1
+        player.treasure = 0
+        
         #return self.getBuyState(player)
         
         #!! not needed yet 
@@ -80,8 +88,8 @@ class Simulation:
         
     
     def makeDecision(self, player, buy):
-        self.setupTurn(player)
-        player.updateTreasure()
+        #self.setupTurn(player) 
+        #player.updateTreasure()
         if buy==1:
             player.treasure -= player.makePurchase(self.shop)
             player.buys -= 1
@@ -96,6 +104,9 @@ class Simulation:
     def getBuyState(self, player):
         return [self.shop.cards, self.p1.hand, self.p1.deck, self.p1.discard, self.p2.hand, self.p2.deck, self.p2.discard]
         '''
+        
+        '''
+    def getModelInput(self, player):
         output = []
         for card in Card.options:
             total = 0
@@ -107,14 +118,33 @@ class Simulation:
         output.append(player.buys)
         output.append(player.treasure)
         return [output]
-        '''
     
     def takeTurn(self):
+        self.setupTurn(self.p2)
+        print("sim taking turn")
+        #self.setupTurn(self.p2)
+        self.p2.actionPhase()
+        #!!stop buy phase
+        print(self.p2.buys)
+        print(self.p2.treasure)
+        print(self.p2.hand)
+        print(self.p2.deck)
+        print(self.p2.discard)
+        
+        self.p2.buyPhase(self.shop, self.weightsFile, self.getModelInput(self.p2))
+        print('after:')
+        print(self.p2.buys)
+        print(self.p2.treasure)
+        print(self.p2.hand)
+        print(self.p2.deck)
+        print(self.p2.discard)
+        self.p2.cleanupPhase()
+        '''
         done = False
         while not done:
             #AI HERE?
             done = self.makeDecision(self.p2, 1)
-        
+        '''
         
 
 # In[268]:
@@ -159,7 +189,7 @@ class Player:
                 self.hand[drawnCard] = 1
     
     def actionPhase(self):
-        self.actions = 1
+        #self.actions = 1
         while self.actions > 0:
             actionCards = []
             for cardName in self.hand:
@@ -195,23 +225,34 @@ class Player:
             
     def updateTreasure(self):
         #count the treasure and add to player
-        self.treasure = 0
+        #self.treasure = 0
         for cardName in self.hand:
             card = Card(cardName)
             if card.type == "Treasure":
                 self.treasure += card.value * self.hand[cardName]
             
-    def buyPhase(self, shop):
-        self.buys += 1
+    def buyPhase(self, shop, weightsFile, state):
+        #self.buys += 1
         #find all money in hand
         for cardName in self.hand:
             card = Card(cardName)
             if card.type == "Treasure":
                 self.treasure += card.value * self.hand[cardName]
+        while self.buys > 0:
+            model = keras.models.load_model(weightsFile)
+            print("after load")
+            print(np.array(state))
+            purchaseChoice = np.argmax(model.predict(np.array(state)))
+            print("choice made: "+str(purchaseChoice))
+            if purchaseChoice == 0:
+                self.buys = 0
+            else:
+                self.treasure -= self.makePurchase(shop, purchaseChoice)
+                self.buys -= 1
         #buy things with treasure
         #!!output the state now and take input for makePurchase
-        print('total treasure for buys')
-        print(self.treasure)
+        #print('total treasure for buys')
+        #print(self.treasure)
         '''
         while self.buys > 0:
             self.treasure -= self.makePurchase(shop)
@@ -245,12 +286,15 @@ class Player:
         self.treasure -= Card(card).cost
         if self.buys <= 0:
             self.cleanupPhase()
-            
+            '''
             if len(self.getActions()) == 0:
+                print("update treasure in player purchase")
+                self.updateTreasure()
                 self.phase = 2
             else: 
                 self.phase = 1
                 #self.actions = 1
+            '''
             return True
         return False
         
@@ -268,6 +312,8 @@ class Player:
                 actionCards.append(cardName)
         return actionCards
     
+    #was working, changed for model
+    '''
     def makePurchase(self, shop):
         buyable = []
         for cardName in shop.cards:
@@ -277,10 +323,42 @@ class Player:
         #print(self.buys)
         #print(shop.cards)
         #print(shop.checkEnd())
+        #replace wih AI?
         bought = random.choice(buyable) # random choice card being bought within reason
         shop.deal(bought, self, self.discard)
         return Card(bought).cost
-        
+     '''  
+     
+    def makePurchase(self, shop, buy):
+        buyable = []
+        minPrice = 0
+        if buy==1:
+            cardType = "Kingdom"
+            minPrice = min(self.treasure-1,4)
+        if buy==2:
+            cardType = "Treasure"
+        if buy==3:
+            cardType = "VP"
+        for cardName in shop.cards:
+            if Card(cardName).cost <= self.treasure and shop.cards[cardName] > 0 and Card(cardName).type==cardType:
+                if self.buys > 1 or Card(cardName).cost >= minPrice:
+                    if cardType == "Kingdom":
+                        buyable.append(cardName)
+                    else:
+                        buyable = [cardName]
+                        minPrice = Card(cardName).cost
+                
+        #print("purchase options: "+str(buyable))
+        #print(self.treasure)
+        #print(self.buys)
+        #print(shop.cards)
+        #print(shop.checkEnd())
+        if len(buyable) > 0:
+            bought = random.choice(buyable) # random choice card being bought within reason
+            shop.deal(bought, self, self.discard)
+            return Card(bought).cost
+        else: 
+            return 0
     
     def cleanupPhase(self):
         #print('cleanupPhase')
@@ -290,7 +368,7 @@ class Player:
         #print(self.hand)
         self.turn += 1
         self.phase = 1
-        self.updateTreasure()
+        self.treasure = 0
         self.buys = 1
         self.actions = 1
     
@@ -298,7 +376,7 @@ class Player:
         #print('discarding..')
         if not card:
             for card in self.hand:
-                print(card)
+                #print(card)
                 if card in self.discard:
                     self.discard[card] += self.hand[card]
                 else:
@@ -350,9 +428,13 @@ class ActionHandler:
         self.opp = opponent
         
     def playerUse(self, card, stage=0, arg=None):
-        print(stage)
-        print(card)
-        print(arg)
+        #print(stage)
+        #print(card)
+        #print(arg)
+        if stage == 0:
+            self.user.actions -= 1
+            print('taking away action')
+            print(self.user.actions)
         if card == "Cellar":
             if stage == 0:
                 inHand = self.user.hand.copy()
@@ -361,7 +443,9 @@ class ActionHandler:
                     self.user.phase = 3
                     return {"message":"Do you want to discard a card?", "options": ["Yes", "No"], "stage": stage+1, "card": card}
                 else:
+                    print("giving action for cellar 1")
                     self.user.actions += 1
+                    self.user.phase = 1
                     return None
             if stage == 1:
                 #print(arg=="Yes")
@@ -369,13 +453,33 @@ class ActionHandler:
                     self.user.phase = 3
                     return {"message":"Which card?", "options": list(filter(lambda x: x != "Cellar", self.user.hand)), "stage": stage+1, "card": card}
                 else:
+                    print("giving action for cellar 2")
+                    self.user.phase = 1
                     self.user.actions += 1
                     return None
+                
+                #reworked
+                '''
             if stage == 2:
                 self.user.discardCard(arg)
                 self.user.draw()
                 self.user.phase = 3
                 return self.playerUse(card)
+                '''
+            if stage == 2:
+                if arg != 'None':
+                    self.user.discardCard(arg)
+                    self.user.draw()
+                    self.user.phase = 3
+                    myHand = list(filter(lambda x: x != "Cellar", self.user.hand))
+                    myHand.append("None")
+                    return {"message":"What other card would you like to discard?", "options": myHand, "stage": stage, "card": card}
+                else:
+                    print('giving action for cellar 3')
+                    self.user.actions += 1
+                    #self.user.phase = 1
+                    #return None
+                    
                 
             
         if card == "Market":
@@ -466,10 +570,12 @@ class ActionHandler:
                     return {"message":"What will you buy?", "options": buyable, "stage": stage+1, "card": card}
             else:
                 self.shop.deal(arg, self.user, self.user.discard)
-        self.user.actions -= 1
+        #self.user.actions -= 1
+        self.user.phase = 1
         if self.user.actions <= 0:
             self.user.phase = 2
-            self.user.buys = 1
+            #self.user.buys = 1
+            self.user.updateTreasure()
         
     def computerUse(self, card):
         #print(card+" played by "+str(self.user))
